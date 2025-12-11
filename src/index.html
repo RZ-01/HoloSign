@@ -2,16 +2,660 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
-  <title>Vanilla JavaScript App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoloLens ASL Translator | Team 2</title>
+    <style>
+        :root {
+            --primary: #D4AF37;
+            /* Gold */
+            --primary-glow: rgba(212, 175, 55, 0.8);
+            --bg-dark: #050505;
+            /* Darker for contrast */
+            --glass: rgba(20, 20, 20, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-muted: #b0b0b0;
+            --accent: #00f2ff;
+            /* Cyan for Tech */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        /* --- Dynamic Background --- */
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            /* subtle radial gradient to give depth behind particles */
+            background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+        }
+
+        /* --- Animations --- */
+        @keyframes flowLine {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .reveal {
+            opacity: 0;
+            transition: all 1s ease;
+            transform: translateY(50px);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- Header --- */
+        header {
+            position: fixed;
+            width: 100%;
+            padding: 1.5rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--primary), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 5rem;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+            font-weight: 800;
+        }
+
+        .hero span {
+            color: var(--primary);
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            color: #ccc;
+            /* Lighter for readability against particles */
+            max-width: 700px;
+            margin-bottom: 3rem;
+            background: rgba(0, 0, 0, 0.4);
+            /* Slight backing for text */
+            padding: 10px;
+            border-radius: 10px;
+            backdrop-filter: blur(2px);
+        }
+
+        .btn-glow {
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 50px;
+            transition: 0.4s;
+            position: relative;
+            overflow: hidden;
+            font-weight: bold;
+        }
+
+        .btn-glow:hover {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 40px var(--accent);
+        }
+
+        /* --- Tech Specs Strip --- */
+        .tech-bar {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(10, 10, 10, 0.9);
+            padding: 2rem;
+            margin-top: 4rem;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat h4 {
+            font-size: 2.5rem;
+            color: var(--accent);
+        }
+
+        .stat p {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* --- Pipeline Section --- */
+        .section {
+            padding: 6rem 10%;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            margin-bottom: 4rem;
+            border-left: 5px solid var(--primary);
+            padding-left: 1rem;
+        }
+
+        .pipeline-container {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .pipeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            background-size: 200% 100%;
+            animation: flowLine 2s linear infinite;
+            z-index: 0;
+            transform: translateY(-50%);
+        }
+
+        .p-card {
+            flex: 1;
+            min-width: 180px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            padding: 2rem 1.5rem;
+            border-radius: 15px;
+            position: relative;
+            z-index: 1;
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .p-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px rgba(0, 242, 255, 0.1);
+        }
+
+        .p-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .p-card p {
+            font-size: 1.1rem;
+            color: #ccc;
+            line-height: 1.4;
+        }
+
+        /* --- Bento Box Grid --- */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 300px);
+            gap: 1.5rem;
+        }
+
+        .bento-item {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            position: relative;
+            overflow: hidden;
+            transition: 0.4s;
+        }
+
+        .bento-item:hover {
+            border-color: var(--primary);
+        }
+
+        .bento-item.large {
+            grid-column: span 2;
+        }
+
+        .bento-item.tall {
+            grid-row: span 2;
+        }
+
+        .bento-bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.2;
+            transition: 0.5s;
+            z-index: 0;
+        }
+
+        .bento-item:hover .bento-bg-img {
+            opacity: 0.4;
+            transform: scale(1.1);
+        }
+
+        .bento-content {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .bento-content h3 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .bento-content p {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+
+        /* Tech Tags */
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: auto;
+            /* Push to bottom if needed */
+        }
+
+        .tech-tag {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: var(--text-muted);
+            backdrop-filter: blur(5px);
+            transition: 0.3s;
+        }
+
+        .bento-item:hover .tech-tag {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        /* Abstract CSS Backgrounds */
+        .bg-grid {
+            background-color: #0a0a0a;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .bg-gradient-mesh {
+            background: radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+        }
+
+        .bg-dots {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 900px) {
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .bento-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+
+            .bento-item.large,
+            .bento-item.tall {
+                grid-column: span 1;
+                grid-row: span 1;
+                min-height: 250px;
+            }
+
+            .pipeline-container {
+                flex-direction: column;
+            }
+
+            .pipeline-line {
+                width: 4px;
+                height: 100%;
+                left: 50%;
+                top: 0;
+                transform: translateX(-50%);
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <main>
-    <h1>Vanilla JavaScript App</h1>
-  </main>
+
+    <canvas id="canvas-bg"></canvas>
+
+    <header>
+        <div class="logo">HoloSign</div>
+    </header>
+
+    <section class="hero">
+        <h1 class="reveal"><span>Voice for the Voiceless.</span></h1>
+        <p class="reveal">Real-time ASL Translation powered by HoloLens 2, Custom Machine Learning, and LLM
+            Contextualization.</p>
+        <a href="#pipeline" class="btn-glow reveal">View Architecture</a>
+    </section>
+
+    <div class="tech-bar reveal">
+        <div class="stat">
+            <h4>26</h4>
+            <p>Joints Tracked</p>
+        </div>
+        <div class="stat">
+            <h4>&lt; 200ms</h4>
+            <p>Latency</p>
+        </div>
+        <div class="stat">
+            <h4>98%</h4>
+            <p>TCP Uptime</p>
+        </div>
+    </div>
+
+    <section id="pipeline" class="section">
+        <h2 class="section-title reveal">The Data Pipeline</h2>
+        <div class="pipeline-container reveal">
+            <div class="pipeline-line"></div>
+
+            <div class="p-card">
+                <div class="p-icon">📷</div>
+                <h3>Unity Input</h3>
+                <p>HoloLens 2 Joint Extraction</p>
+            </div>
+            <div class="p-card">
+                <div class="p-icon">⚡</div>
+                <h3>TCP Transport</h3>
+                <p>Low-Latency Socket Stream</p>
+            </div>
+            <div class="p-card">
+                <div class="p-icon">🧠</div>
+                <h3>ML Inference</h3>
+                <p>Custom Classification Model</p>
+            </div>
+            <div class="p-card">
+                <div class="p-icon">💬</div>
+                <h3>LLM Refine</h3>
+                <p>Contextualization</p>
+            </div>
+            <div class="p-card">
+                <div class="p-icon">📱</div>
+                <h3>Web UI</h3>
+                <p>Real-time Display</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title reveal">Innovation Stack</h2>
+        <div class="bento-grid">
+            <div class="bento-item large reveal">
+                <div class="bento-bg-img" style="background: url('./handtracking.png') center/cover;">
+                </div>
+                <div class="bento-content">
+                    <h3>Proprietary Data Engine</h3>
+                    <p>We built a custom Data Collector to record First-Person POV coordinates, solving the industry
+                        scarcity of AR-specific ASL datasets.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Unity</span>
+                        <span class="tech-tag">HoloLens 2</span>
+                        <span class="tech-tag">Data Collection</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bento-item reveal">
+                <div class="bento-bg-img bg-grid" style="background: url('./tcp.png') center/cover;"></div>
+                <div class="bento-content">
+                    <h3>TCP Sockets</h3>
+                    <p>Direct joint-stream transmission ensures instant feedback loops (< 200ms).</p>
+                            <div class="tech-tags">
+                                <span class="tech-tag">C#</span>
+                                <span class="tech-tag">Python</span>
+                                <span class="tech-tag">ZeroMQ</span>
+                            </div>
+                </div>
+            </div>
+
+            <div class="bento-item tall reveal">
+                <div class="bento-bg-img bg-gradient-mesh" style="background: url('./aibrain.png') center/cover;"></div>
+                <div class="bento-content">
+                    <h3>Contextual AI</h3>
+                    <p>Raw letter streams (H-E-L-L) are processed by an LLM to correct jitter and predict full
+                        sentences based on conversation history.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">GPT-4</span>
+                        <span class="tech-tag">Fine-tuning</span>
+                        <span class="tech-tag">NLP</span>
+                        <span class="tech-tag">Predictive Text</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bento-item large reveal">
+                <div class="bento-bg-img bg-dots" style="background: url('./community.png') center/cover;"></div>
+                <div class="bento-content">
+                    <h3>Impact & Open Source</h3>
+                    <p>Training high-precision models to truly empower the deaf community, while contributing the
+                        world's largest ASL-AR dataset to the open-source ecosystem.</p>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Open Source</span>
+                        <span class="tech-tag">Accessibility</span>
+                        <span class="tech-tag">Deep Learning</span>
+                        <span class="tech-tag">Community</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer style="text-align: center; padding: 4rem; color: #555;">
+        <p>CSE 118 Team 2 | Andrew, Pranav, Hui, Jinrui</p>
+    </footer>
+
+    <script>
+        // 1. Scroll Reveal Logic
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // 2. Enhanced Particle Network Animation
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        // Mouse Object for Interaction
+        let mouse = {
+            x: null,
+            y: null,
+            radius: 150 // Interaction radius
+        }
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles(); // Re-init on resize to keep density correct
+        }
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 1.5; // Faster movement
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.size = Math.random() * 3 + 1; // Larger particles
+                this.baseColor = 'rgba(212, 175, 55, 0.7)'; // Brighter Gold
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall collision
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+                // Mouse Interaction
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                // If mouse is close, particles react
+                if (distance < mouse.radius) {
+                    const forceDirectionX = dx / distance;
+                    const forceDirectionY = dy / distance;
+                    const force = (mouse.radius - distance) / mouse.radius;
+                    const directionX = forceDirectionX * force * 3; // Push strength
+                    const directionY = forceDirectionY * force * 3;
+
+                    // Subtle push away (optional: change to -= to attract)
+                    this.x -= directionX;
+                    this.y -= directionY;
+                }
+            }
+            draw() {
+                ctx.fillStyle = this.baseColor;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            // Increase density: number of particles based on screen size
+            let numberOfParticles = (canvas.width * canvas.height) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Loop particles
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+
+                // Draw lines to nearby particles
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 120) {
+                        ctx.beginPath();
+                        // Opacity based on distance
+                        ctx.strokeStyle = `rgba(0, 242, 255, ${1 - distance / 120})`; // Cyan lines
+                        ctx.lineWidth = 0.8;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                        ctx.closePath();
+                    }
+                }
+
+                // Draw lines to MOUSE (The "Hand Tracking" Effect)
+                if (mouse.x != null) {
+                    let dx = particles[i].x - mouse.x;
+                    let dy = particles[i].y - mouse.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < mouse.radius) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(212, 175, 55, ${1 - distance / mouse.radius})`; // Gold lines to mouse
+                        ctx.lineWidth = 1.5; // Thicker connection to mouse
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                        ctx.closePath();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        resize();
+        animate();
+    </script>
 </body>
 
 </html>
